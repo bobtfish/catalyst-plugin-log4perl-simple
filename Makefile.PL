@@ -16,5 +16,5 @@ build_requires 'Test::More';
 build_requires 'Test::Log4perl';
 
 build_requires 'ok';
-
+auto_install;
 WriteAll();

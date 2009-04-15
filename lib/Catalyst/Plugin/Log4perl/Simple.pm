@@ -1,11 +1,6 @@
-package Catalyst::Plugin::Log4perl::Simple;
+package Catalyst::Plugin::Log4Perl::Simple;
+use Moose::Role;
 
-use strict;
-use warnings;
-
-BEGIN { require 5.008001; }
-
-use version;
 our $VERSION = '0.01';
 
 =pod
@@ -20,12 +15,13 @@ Catalyst::Plugin::Log4perl::Simple - Logging and monitoring for Catalyst
 
  # without any config, this will create a default
  # Catalyst::Log::Log4perl instance on setup
- use Catalyst (
-   # your plug-ins here
-   Log4perl::Extended
- );
+ use Moose;
+ use Catalyst;
+ 
+ with 'Catalyst::Plugin::Log4perl::Simple'; # FIXME name
 
  # you can just enable exception reporting like this:
+ # FIXME namespace
  MyApp->config(
    log4perl => { error_logger => { recipient => 'me@example.com' }}
  );
@@ -75,7 +71,6 @@ log settings.
 =cut
 
 use Carp;
-use Scalar::Util qw/blessed/;
 use Sub::Recursive;
 
 use Data::Dumper;
@@ -103,10 +98,8 @@ my %ignore_classes;
 my @error_loggers;
 my %email_appender;
 
-sub setup {
+after 'setup_finalize' => sub {
   my $self = shift;
-
-  $self->next::method( @_ );
 
   my ( $error_logger, %log4perl_conf, %log4perl_args, %error_logger );
 
@@ -223,7 +216,7 @@ sub setup {
     $email_appender{ $logger } = $appender;
   }
 
-}
+};
 
 
 =head2 $self->dispatch
@@ -234,7 +227,8 @@ are emitted normally.
 
 =cut
 
-sub dispatch {
+around 'dispatch' => sub {
+  my $orig = shift;
   my $self = shift;
 
   local $SIG{__WARN__} = sub{
@@ -243,8 +237,8 @@ sub dispatch {
     warn $@ if $@;
   };
 
-  $self->next::method( @_ );
-}
+  $self->$orig( @_ );
+};
 
 
 =head2 $self->finalize
@@ -255,7 +249,7 @@ so make sure your logging threshold is set high enough)
 
 =cut
 
-sub finalize {
+before 'finalize' => sub {
   my $self = shift;
 
   #$self->log->warn('Flushing logger');
@@ -273,10 +267,9 @@ sub finalize {
       }
     }
   );
-  $self->next::method( @_ );
-}
+};
 
-sub finalize_error {
+before 'finalize_error' => sub {
   my $self = shift;
 
   my $conf = $self->config;
@@ -364,10 +357,7 @@ sub finalize_error {
   $self->log->_flush unless $self->log->{abort};
 
   $send_report_message->( $dump );
-
- FINALIZE_OTHERS:
-  $self->next::method( @_ );
-}
+};
 
 
 1;
